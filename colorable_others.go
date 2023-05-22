@@ -1,5 +1,5 @@
-//go:build !windows && !appengine
-// +build !windows,!appengine
+//go:build !windows
+// +build !windows
 
 package colorable
 
@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	_ "github.com/mattn/go-isatty"
+	"github.com/mattn/go-isatty"
 )
 
 // NewColorable returns new instance of Writer which handles escape sequence.
@@ -35,4 +35,30 @@ func EnableColorsStdout(enabled *bool) func() {
 		*enabled = true
 	}
 	return func() {}
+}
+
+type filelike interface {
+	Fd() uintptr
+}
+
+func IsWriterTerminal(file io.Writer) bool {
+	if f, ok := file.(filelike); ok {
+		return IsTerminal(f.Fd())
+	}
+	return false
+}
+
+func IsReaderTerminal(file io.Reader) bool {
+	if f, ok := file.(filelike); ok {
+		return IsTerminal(f.Fd())
+	}
+	return false
+}
+
+func IsTerminal(fd uintptr) bool {
+	return isatty.IsTerminal(fd)
+}
+
+func IsCygwinTerminal(fd uintptr) bool {
+	return isatty.IsCygwinTerminal(fd)
 }
