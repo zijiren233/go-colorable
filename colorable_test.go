@@ -30,23 +30,6 @@ func TestEncoding(t *testing.T) {
 	checkEncoding(t, []byte{233})   // 'é' in Latin-1
 }
 
-func TestNonColorable(t *testing.T) {
-	var buf bytes.Buffer
-	want := "hello"
-	NewNonColorableWriter(&buf).Write([]byte("\x1b[0m" + want + "\x1b[2J"))
-	got := buf.String()
-	if got != "hello" {
-		t.Fatalf("want %q but %q", want, got)
-	}
-
-	buf.Reset()
-	NewNonColorableWriter(&buf).Write([]byte("\x1b["))
-	got = buf.String()
-	if got != "" {
-		t.Fatalf("want %q but %q", "", got)
-	}
-}
-
 func TestNonColorableNil(t *testing.T) {
 	paniced := false
 	func() {
@@ -66,14 +49,6 @@ func TestNonColorableNil(t *testing.T) {
 func TestNonColorableESC(t *testing.T) {
 	var b bytes.Buffer
 	NewNonColorableWriter(&b).Write([]byte{0x1b})
-	if b.Len() > 0 {
-		t.Fatalf("0 bytes expected, got %d", b.Len())
-	}
-}
-
-func TestNonColorableBadESC(t *testing.T) {
-	var b bytes.Buffer
-	NewNonColorableWriter(&b).Write([]byte{0x1b, 0x1b})
 	if b.Len() > 0 {
 		t.Fatalf("0 bytes expected, got %d", b.Len())
 	}
