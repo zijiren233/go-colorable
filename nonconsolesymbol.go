@@ -142,7 +142,7 @@ type NonConsoleSymbolReader struct {
 
 func NewNonConsoleSymbolReader(r io.Reader, conf NonConsoleSymbolConf) *NonConsoleSymbolReader {
 	return &NonConsoleSymbolReader{
-		source: stream.NewReader(r),
+		source: stream.NewReader(r, stream.BigEndian),
 		conf:   conf,
 		buf:    bytes.NewBuffer(nil),
 	}
