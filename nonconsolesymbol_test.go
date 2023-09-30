@@ -35,6 +35,9 @@ func TestNonConsoleSymbolReader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// if n != int64(len(want)) {
+	// 	t.Fatalf("want %d but %d", len(want), n)
+	// }
 	got := buf.String()
 	if got != want {
 		t.Fatalf("want %q but %q", want, got)

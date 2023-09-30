@@ -49,21 +49,29 @@ func NewNonConsoleSymbolWriter(w io.Writer, conf NonConsoleSymbolConf) io.Writer
 
 func (w *NonConsoleSymbolWriter) Write(p []byte) (n int, err error) {
 	r := bytes.NewBuffer(p)
-	var c byte
-	var line []byte
+	var (
+		nn   int
+		c    byte
+		line []byte
+	)
 	for {
 		switch {
 		case w.buf.Len() == 0:
 			line, err = r.ReadBytes(0x1b)
 			if err != nil {
 				if err == io.EOF {
-					return w.target.Write(line)
+					err = nil
+					if len(line) > 0 {
+						nn, err = w.target.Write(line)
+						n += nn
+					}
 				}
 				return
 			}
-			if _, err = w.target.Write(line[:len(line)-1]); err != nil {
+			if nn, err = w.target.Write(line[:len(line)-1]); err != nil {
 				return
 			}
+			n += nn + 1
 			if err = w.buf.WriteByte(0x1b); err != nil {
 				return
 			}
@@ -146,22 +154,26 @@ func NewNonConsoleSymbolReader(r io.Reader, conf NonConsoleSymbolConf) *NonConso
 func (r *NonConsoleSymbolReader) Read(p []byte) (n int, err error) {
 	n = copy(p[n:], r.buf.Bytes())
 	r.buf.Truncate(r.buf.Len() - n)
-	var c byte
+	var (
+		c    byte
+		line []byte
+	)
 	maxI := len(p) - 1
 	for {
 		if n > maxI {
 			return
 		}
-		r.source.ReadBytes(0x1b)
-		if c, err = r.source.ReadByte(); err != nil {
-			return
+		line, err = r.source.ReadBytes(0x1b)
+		if len(line) > 0 {
+			line = line[:len(line)-1]
+			if len(p[n:]) < len(line) {
+				n += copy(p[n:], line[:len(p[n:])])
+				r.buf.Write(line[len(p[n:]):])
+			} else {
+				n += copy(p[n:], line)
+			}
 		}
-		if c != 0x1b {
-			p[n] = c
-			n++
-			continue
-		}
-		if err = r.buf.WriteByte(c); err != nil {
+		if err != nil {
 			return
 		}
 		if c, err = r.source.ReadByte(); err != nil {
