@@ -1,10 +1,9 @@
 package colorable
 
 import (
+	"bufio"
 	"bytes"
 	"io"
-
-	"github.com/zijiren233/stream"
 )
 
 var _ io.Writer = &NonConsoleSymbolWriter{}
@@ -49,25 +48,23 @@ func NewNonConsoleSymbolWriter(w io.Writer, conf NonConsoleSymbolConf) io.Writer
 }
 
 func (w *NonConsoleSymbolWriter) Write(p []byte) (n int, err error) {
-	r := bytes.NewReader(p)
+	r := bytes.NewBuffer(p)
 	var c byte
+	var line []byte
 	for {
 		switch {
 		case w.buf.Len() == 0:
-			if c, err = r.ReadByte(); err != nil {
+			line, err = r.ReadBytes(0x1b)
+			if err != nil {
 				if err == io.EOF {
-					err = nil
+					return w.target.Write(line)
 				}
 				return
 			}
-			n++
-			if c != 0x1b {
-				if _, err = w.target.Write([]byte{c}); err != nil {
-					return
-				}
-				continue
+			if _, err = w.target.Write(line[:len(line)-1]); err != nil {
+				return
 			}
-			if err = w.buf.WriteByte(c); err != nil {
+			if err = w.buf.WriteByte(0x1b); err != nil {
 				return
 			}
 			fallthrough
@@ -120,9 +117,7 @@ func (w *NonConsoleSymbolWriter) Write(p []byte) (n int, err error) {
 						w.buf.Reset()
 						break
 					}
-					newSlice := make([]byte, w.buf.Len())
-					copy(newSlice, w.buf.Bytes())
-					_, err = w.target.Write(newSlice)
+					_, err = io.Copy(w.target, w.buf)
 					w.buf.Reset()
 					if err != nil {
 						return
@@ -135,14 +130,14 @@ func (w *NonConsoleSymbolWriter) Write(p []byte) (n int, err error) {
 }
 
 type NonConsoleSymbolReader struct {
-	source *stream.Reader
+	source *bufio.Reader
 	conf   NonConsoleSymbolConf
 	buf    *bytes.Buffer
 }
 
 func NewNonConsoleSymbolReader(r io.Reader, conf NonConsoleSymbolConf) *NonConsoleSymbolReader {
 	return &NonConsoleSymbolReader{
-		source: stream.NewReader(r, stream.BigEndian),
+		source: bufio.NewReader(r),
 		conf:   conf,
 		buf:    bytes.NewBuffer(nil),
 	}
@@ -157,6 +152,7 @@ func (r *NonConsoleSymbolReader) Read(p []byte) (n int, err error) {
 		if n > maxI {
 			return
 		}
+		r.source.ReadBytes(0x1b)
 		if c, err = r.source.ReadByte(); err != nil {
 			return
 		}
